@@ -90,6 +90,10 @@ namespace RestSharp
 			if (contentType != "*")
 			{
 				AcceptTypes.Add(contentType);
+				// add Accept header based on registered deserializers
+				var accepts = string.Join(", ", AcceptTypes.ToArray());
+				this.RemoveDefaultParameter("Accept");
+				this.AddDefaultParameter("Accept", accepts, ParameterType.HttpHeader);
 			}
 		}
 
@@ -101,6 +105,7 @@ namespace RestSharp
 		{
 			ContentHandlers.Remove(contentType);
 			AcceptTypes.Remove(contentType);
+			this.RemoveDefaultParameter("Accept");
 		}
 
 		/// <summary>
@@ -110,6 +115,7 @@ namespace RestSharp
 		{
 			ContentHandlers.Clear();
 			AcceptTypes.Clear();
+			this.RemoveDefaultParameter("Accept");
 		}
 
 		/// <summary>
@@ -149,6 +155,12 @@ namespace RestSharp
 		/// X509CertificateCollection to be sent with request
 		/// </summary>
 		public X509CertificateCollection ClientCertificates { get; set; }
+
+		/// <summary>
+		/// Proxy to use for requests made by this client instance.
+		/// Passed on to underying WebRequest if set.
+		/// </summary>
+		public IWebProxy Proxy { get; set; }
 #endif
 
 		/// <summary>
@@ -282,6 +294,8 @@ namespace RestSharp
 		{
 			http.CookieContainer = CookieContainer;
 
+			http.ResponseWriter = request.ResponseWriter;
+
 			// move RestClient.DefaultParameters into Request.Parameters
 			foreach(var p in DefaultParameters)
 			{
@@ -291,6 +305,13 @@ namespace RestSharp
 				}
 
 				request.AddParameter(p);
+			}
+
+			// Add Accept header based on registered deserializers if none has been set by the caller.
+			if (!request.Parameters.Any(p2 => p2.Name.ToLowerInvariant() == "accept"))
+			{
+				var accepts = string.Join(", ", AcceptTypes.ToArray());
+				request.AddParameter("Accept", accepts, ParameterType.HttpHeader);
 			}
 
 			http.Url = BuildUri(request);
@@ -372,10 +393,27 @@ namespace RestSharp
 
 			if(body != null)
 			{
-				http.RequestBody = body.Value.ToString();
+				object val = body.Value;
+				if (val is byte[])
+					http.RequestBodyBytes = (byte[])val;
+				else
+					http.RequestBody = body.Value.ToString();
 				http.RequestContentType = body.Name;
 			}
+#if FRAMEWORK
+			ConfigureProxy(http);
+#endif
 		}
+
+#if FRAMEWORK
+		private void ConfigureProxy(IHttp http)
+		{
+			if (Proxy != null)
+			{
+				http.Proxy = Proxy;
+			}
+		}
+#endif
 
 		private RestResponse ConvertToRestResponse(IRestRequest request, HttpResponse httpResponse)
 		{
