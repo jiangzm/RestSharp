@@ -71,17 +71,23 @@ namespace RestSharp.Deserializers
 			{
 				var type = prop.PropertyType;
 
-				var name = prop.Name;
+				string name = String.Empty;
+
+				var attributes = prop.GetCustomAttributes(typeof(DeserializeAsAttribute), false);
+				if (attributes.Length > 0)
+				{
+					var attribute = (DeserializeAsAttribute)attributes[0];
+					name = attribute.Name;
+				}
+				else
+				{
+					name = prop.Name;
+				}
+
 				var actualName = name.GetNameVariants(Culture).FirstOrDefault(n => data.ContainsKey(n));
 				var value = actualName != null ? data[actualName] : null;
 
 				if (value == null) continue;
-
-				// check for nullable and extract underlying type
-				if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
-				{
-					type = type.GetGenericArguments()[0];
-				}
 
 				prop.SetValue(target, ConvertValue(type, value), null);
 			}
@@ -149,7 +155,16 @@ namespace RestSharp.Deserializers
 		private object ConvertValue(Type type, object value)
 		{
 			var stringValue = Convert.ToString(value, Culture);
+			
+			// check for nullable and extract underlying type
+			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+			{
+				// Since the type is nullable and no value is provided return null
+				if (String.IsNullOrEmpty(stringValue)) return null;
 
+				type = type.GetGenericArguments()[0];
+			}
+			
 			if (type.IsPrimitive)
 			{
 				// no primitives can contain quotes so we can safely remove them
@@ -194,6 +209,9 @@ namespace RestSharp.Deserializers
 			}
 			else if (type == typeof(Decimal))
 			{
+				if (value is double)
+					return (decimal)((double)value);
+
 				return Decimal.Parse(stringValue, Culture);
 			}
 			else if (type == typeof(Guid))

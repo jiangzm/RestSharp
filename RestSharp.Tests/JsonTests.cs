@@ -160,9 +160,22 @@ namespace RestSharp.Tests
 		}
 
 		[Fact]
-		public void Can_Deserialize_Empty_Elements_to_Nullable_Values()
+		public void Can_Deserialize_Null_Elements_to_Nullable_Values()
 		{
 			var doc = CreateJsonWithNullValues();
+
+			var json = new JsonDeserializer();
+			var output = json.Deserialize<NullableValues>(new RestResponse { Content = doc });
+
+			Assert.Null(output.Id);
+			Assert.Null(output.StartDate);
+			Assert.Null(output.UniqueId);
+		}
+
+		[Fact]
+		public void Can_Deserialize_Empty_Elements_to_Nullable_Values()
+		{
+			var doc = CreateJsonWithEmptyValues();
 
 			var json = new JsonDeserializer();
 			var output = json.Deserialize<NullableValues>(new RestResponse { Content = doc });
@@ -190,6 +203,18 @@ namespace RestSharp.Tests
 				new DateTime(2010, 2, 21, 9, 35, 00, DateTimeKind.Utc),
 				output.StartDate.Value);
 			Assert.Equal(new Guid(GuidString), output.UniqueId);
+		}
+
+		[Fact]
+		public void Can_Deserialize_Json_Using_DeserializeAs_Attribute()
+		{
+			const string content = "{\"sid\":\"asdasdasdasdasdasdasda\",\"friendlyName\":\"VeryNiceName\",\"oddballPropertyName\":\"blahblah\"}";
+
+			var json = new JsonDeserializer { RootElement = "users" };
+			var output = json.Deserialize<Oddball>(new RestResponse { Content = content });
+
+			Assert.NotNull(output);
+			Assert.Equal("blahblah", output.GoodPropertyName);
 		}
 
 		[Fact]
@@ -607,6 +632,17 @@ namespace RestSharp.Tests
 			Assert.Equal ("{\"Name\":\"ThingBlue\",\"Color\":\"Blue\"}", bd["ThingBlue"]);
 		}
 
+		[Fact]
+		public void Can_Deserialize_Decimal_With_Four_Zeros_After_Floating_Point()
+		{
+			const string json = "{\"Value\":0.00005557}";
+			var response = new RestResponse() {Content = json};
+			var d = new JsonDeserializer();
+			var result = d.Deserialize<DecimalNumber>(response);
+
+			Assert.Equal(result.Value, .00005557m);
+		}
+
 		private string CreateJsonWithUnderscores()
 		{
 			var doc = new JsonObject();
@@ -755,6 +791,16 @@ namespace RestSharp.Tests
 			doc["Id"] = null;
 			doc["StartDate"] = null;
 			doc["UniqueId"] = null;
+
+			return doc.ToString();
+		}
+
+		private string CreateJsonWithEmptyValues()
+		{
+			var doc = new JObject();
+			doc["Id"] = "";
+			doc["StartDate"] = "";
+			doc["UniqueId"] = "";
 
 			return doc.ToString();
 		}
