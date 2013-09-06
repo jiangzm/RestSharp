@@ -264,11 +264,6 @@ namespace RestSharp
 				// build and attach querystring if this is a get-style request
 				if (request.Parameters.Any(p => p.Type == ParameterType.GetOrPost))
 				{
-					if (assembled.EndsWith("/"))
-					{
-						assembled = assembled.Substring(0, assembled.Length - 1);
-					}
-
 					var data = EncodeParameters(request);
 					assembled = string.Format("{0}?{1}", assembled, data);
 				}
@@ -290,8 +285,9 @@ namespace RestSharp
 			return querystring.ToString();
 		}
 
-		private void ConfigureHttp(IRestRequest request, IHttp http)
-		{
+		private void ConfigureHttp(IRestRequest request, IHttp http) {
+			http.AlwaysMultipartFormData = request.AlwaysMultipartFormData;
+
 			http.CookieContainer = CookieContainer;
 
 			http.ResponseWriter = request.ResponseWriter;
@@ -464,17 +460,24 @@ namespace RestSharp
 		{
 			request.OnBeforeDeserialization(raw);
 
-			IDeserializer handler = GetHandler(raw.ContentType);
-			handler.RootElement = request.RootElement;
-			handler.DateFormat = request.DateFormat;
-			handler.Namespace = request.XmlNamespace;
-
 			IRestResponse<T> response = new RestResponse<T>();
 			try
 			{
-			    response = raw.toAsyncResponse<T>();
-				response.Data = handler.Deserialize<T>(raw);
+				response = raw.toAsyncResponse<T>();
 				response.Request = request;
+
+				// Only attempt to deserialize if the request has a chance of containing a valid entry
+				if (response.StatusCode == HttpStatusCode.OK 
+					|| response.StatusCode == HttpStatusCode.Created 
+					|| response.StatusCode == HttpStatusCode.NonAuthoritativeInformation)
+				{
+					IDeserializer handler = GetHandler(raw.ContentType);
+					handler.RootElement = request.RootElement;
+					handler.DateFormat = request.DateFormat;
+					handler.Namespace = request.XmlNamespace;
+
+					response.Data = handler.Deserialize<T>(raw);
+				}
 			}
 			catch (Exception ex)
 			{

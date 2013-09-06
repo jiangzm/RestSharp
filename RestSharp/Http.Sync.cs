@@ -173,7 +173,7 @@ namespace RestSharp
 
 		private void PreparePostData(HttpWebRequest webRequest)
 		{
-			if (HasFiles)
+			if (HasFiles || AlwaysMultipartFormData)
 			{
 				webRequest.ContentType = GetMultipartFormContentType();
 				using (var requestStream = webRequest.GetRequestStream())
@@ -212,7 +212,7 @@ namespace RestSharp
 			webRequest.Method = method;
 
 			// make sure Content-Length header is always sent since default is -1
-			if(!HasFiles)
+			if (!HasFiles && !AlwaysMultipartFormData)
 			{
 				webRequest.ContentLength = 0;
 			}
@@ -221,7 +221,7 @@ namespace RestSharp
 
 			if(ClientCertificates != null)
 			{
-				webRequest.ClientCertificates = ClientCertificates;
+				webRequest.ClientCertificates.AddRange(ClientCertificates);
 			}
 
 			if(UserAgent.HasValue())
