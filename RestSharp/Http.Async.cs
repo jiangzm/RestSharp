@@ -110,13 +110,25 @@ namespace RestSharp
 			}
 			catch(Exception ex)
 			{
-				var response = new HttpResponse();
-				response.ErrorMessage = ex.Message;
-				response.ErrorException = ex;
-				response.ResponseStatus = ResponseStatus.Error;
-				ExecuteCallback(response, callback);
+				ExecuteCallback(CreateErrorResponse(ex), callback);
 			}
 			return webRequest;
+		}
+
+		private HttpResponse CreateErrorResponse(Exception ex)
+		{
+			var response = new HttpResponse();
+			var webException = ex as WebException;
+			if (webException != null && webException.Status == WebExceptionStatus.RequestCanceled)
+			{
+				response.ResponseStatus = _timeoutState.TimedOut ? ResponseStatus.TimedOut : ResponseStatus.Aborted;
+				return response;
+			}
+
+			response.ErrorMessage = ex.Message;
+			response.ErrorException = ex;
+			response.ResponseStatus = ResponseStatus.Error;
+			return response;
 		}
 
 		private HttpWebRequest PutPostInternalAsync(string method, Action<HttpResponse> callback)
@@ -130,11 +142,7 @@ namespace RestSharp
 			}
 			catch(Exception ex)
 			{
-				var response = new HttpResponse();
-				response.ErrorMessage = ex.Message;
-				response.ErrorException = ex;
-				response.ResponseStatus = ResponseStatus.Error;
-				ExecuteCallback(response, callback);
+				ExecuteCallback(CreateErrorResponse(ex), callback);
 			}
 			
 			return webRequest;
@@ -221,21 +229,7 @@ namespace RestSharp
 			}
 			catch (Exception ex)
 			{
-				HttpResponse response;
-				if (ex is WebException && ((WebException)ex).Status == WebExceptionStatus.RequestCanceled)
-				{
-					response = new HttpResponse {ResponseStatus = ResponseStatus.TimedOut};
-					ExecuteCallback (response, callback);
-					return;
-				}
-				
-				response = new HttpResponse
-				{
-					ErrorMessage = ex.Message,
-					ErrorException = ex,
-					ResponseStatus = ResponseStatus.Error
-				};
-				ExecuteCallback(response, callback);
+				ExecuteCallback(CreateErrorResponse(ex), callback);
 				return;
 			}
 
@@ -282,26 +276,33 @@ namespace RestSharp
 
 			HttpWebResponse raw = null;
 
-			try
-			{
-				var webRequest = (HttpWebRequest)result.AsyncState;
-				raw = webRequest.EndGetResponse(result) as HttpWebResponse;
-			}
-			catch(WebException ex)
-			{
-				if(ex.Status == WebExceptionStatus.RequestCanceled)
-				{
-					throw ex;
-				}
-				if (ex.Response is HttpWebResponse)
-				{
-					raw = ex.Response as HttpWebResponse;
-				}
-				else
-				{
-					throw ex;
-				}
-			}
+            try
+            {
+                var webRequest = (HttpWebRequest)result.AsyncState;
+                raw = webRequest.EndGetResponse(result) as HttpWebResponse;
+            }
+            catch(WebException ex)
+            {
+                if(ex.Status == WebExceptionStatus.RequestCanceled)
+                {
+                    throw ex;
+                }
+
+                // Check to see if this is an HTTP error or a transport error.
+                // In cases where an HTTP error occurs ( status code >= 400 )
+                // return the underlying HTTP response, otherwise assume a
+                // transport exception (ex: connection timeout) and
+                // rethrow the exception
+
+                if (ex.Response is HttpWebResponse)
+                {
+                    raw = ex.Response as HttpWebResponse;
+                }
+                else
+                {
+                    throw ex;
+                }
+            }
 
 			callback(raw);
 			raw.Close();
@@ -328,17 +329,7 @@ namespace RestSharp
 			}
 			catch(Exception ex)
 			{
-				if(ex is WebException && ((WebException)ex).Status == WebExceptionStatus.RequestCanceled)
-				{
-					response.ResponseStatus = ResponseStatus.Aborted;
-					ExecuteCallback(response, callback);
-					return;
-				}
-
-				response.ErrorMessage = ex.Message;
-				response.ErrorException = ex;
-				response.ResponseStatus = ResponseStatus.Error;
-				ExecuteCallback(response, callback);
+				ExecuteCallback(CreateErrorResponse(ex), callback);
 			}
 		}
 
