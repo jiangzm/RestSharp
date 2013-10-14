@@ -165,13 +165,14 @@ namespace RestSharp.Deserializers
 				type = type.GetGenericArguments()[0];
 			}
 			
+			if (type == typeof(System.Object) && value != null)
+			{
+				type = value.GetType();
+			}
+
 			if (type.IsPrimitive)
 			{
-				// no primitives can contain quotes so we can safely remove them
-				// allows converting a json value like {"index": "1"} to an int
-				var tmpVal = stringValue.Replace("\"", string.Empty);
-
-				return tmpVal.ChangeType(type, Culture);
+				return value.ChangeType(type, Culture);
 			}
 			else if (type.IsEnum)
 			{

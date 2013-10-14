@@ -18,7 +18,7 @@ using System;
 using System.Net;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-#if NET4
+#if NET4 || MONODROID || MONOTOUCH
 using System.Threading;
 using System.Threading.Tasks;
 #endif
@@ -123,28 +123,28 @@ namespace RestSharp
 		IRestResponse<T> ExecuteAsPost<T>(IRestRequest request, string httpMethod) where T : new();
 #endif
 
-#if NET4
+#if NET4 || MONODROID || MONOTOUCH
 		/// <summary>
 		/// Executes the request and callback asynchronously, authenticating if needed
 		/// </summary>
 		/// <typeparam name="T">Target deserialization type</typeparam>
 		/// <param name="request">Request to be executed</param>
 		/// <param name="token">The cancellation token</param>
-		Task<T> ExecuteTaskAsync<T>(IRestRequest request, CancellationToken token);
+		Task<IRestResponse<T>> ExecuteTaskAsync<T>(IRestRequest request, CancellationToken token);
 
 		/// <summary>
 		/// Executes the request asynchronously, authenticating if needed
 		/// </summary>
 		/// <typeparam name="T">Target deserialization type</typeparam>
 		/// <param name="request">Request to be executed</param>
-		Task<T> ExecuteTaskAsync<T>(IRestRequest request);
+		Task<IRestResponse<T>> ExecuteTaskAsync<T>(IRestRequest request);
 
 		/// <summary>
 		/// Executes a GET-style request asynchronously, authenticating if needed
 		/// </summary>
 		/// <typeparam name="T">Target deserialization type</typeparam>
 		/// <param name="request">Request to be executed</param>
-		Task<T> ExecuteGetTaskAsync<T>(IRestRequest request);
+		Task<IRestResponse<T>> ExecuteGetTaskAsync<T>(IRestRequest request);
 
 		/// <summary>
 		/// Executes a GET-style request asynchronously, authenticating if needed
@@ -152,14 +152,14 @@ namespace RestSharp
 		/// <typeparam name="T">Target deserialization type</typeparam>
 		/// <param name="request">Request to be executed</param>
 		/// <param name="token">The cancellation token</param>
-		Task<T> ExecuteGetTaskAsync<T>(IRestRequest request, CancellationToken token);
+		Task<IRestResponse<T>> ExecuteGetTaskAsync<T>(IRestRequest request, CancellationToken token);
 
 		/// <summary>
 		/// Executes a POST-style request asynchronously, authenticating if needed
 		/// </summary>
 		/// <typeparam name="T">Target deserialization type</typeparam>
 		/// <param name="request">Request to be executed</param>
-		Task<T> ExecutePostTaskAsync<T>(IRestRequest request);
+		Task<IRestResponse<T>> ExecutePostTaskAsync<T>(IRestRequest request);
 
 		/// <summary>
 		/// Executes a POST-style request asynchronously, authenticating if needed
@@ -167,7 +167,7 @@ namespace RestSharp
 		/// <typeparam name="T">Target deserialization type</typeparam>
 		/// <param name="request">Request to be executed</param>
 		/// <param name="token">The cancellation token</param>
-		Task<T> ExecutePostTaskAsync<T>(IRestRequest request, CancellationToken token);
+		Task<IRestResponse<T>> ExecutePostTaskAsync<T>(IRestRequest request, CancellationToken token);
 
 		/// <summary>
 		/// Executes the request and callback asynchronously, authenticating if needed
