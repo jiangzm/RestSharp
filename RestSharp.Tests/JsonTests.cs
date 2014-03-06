@@ -32,6 +32,16 @@ namespace RestSharp.Tests
 
 		private const string GuidString = "AC1FC4BC-087A-4242-B8EE-C53EBE9887A5";
 
+        [Fact]
+        public void Can_Deserialize_Select_Tokens()
+        {
+            var data = File.ReadAllText(Path.Combine("SampleData", "jsonarray.txt"));
+            var response = new RestResponse { Content = data };
+            var json = new JsonDeserializer();
+            var output = json.Deserialize<StatusComplexList>(response);
+            Assert.Equal(4, output.Count);
+        }
+
 		[Fact]
 		public void Can_Deserialize_4sq_Json_With_Root_Element_Specified()
 		{
@@ -275,6 +285,24 @@ namespace RestSharp.Tests
 			Assert.Equal(Disposition.SoSo,output.Dashes);
 			Assert.Equal(Disposition.SoSo,output.LowerDashes);
 			Assert.Equal(Disposition.SoSo,output.Integer);
+		}
+
+		[Fact]
+		public void Can_Deserialize_Various_Enum_Types()
+		{
+			var data = File.ReadAllText(Path.Combine("SampleData", "jsonenumtypes.txt"));
+			var response = new RestResponse {Content = data};
+			var json = new JsonDeserializer();
+			var output = json.Deserialize<JsonEnumTypesTestStructure>(response);
+
+			Assert.Equal(ByteEnum.EnumMin, output.ByteEnumType);
+			Assert.Equal(SByteEnum.EnumMin, output.SByteEnumType);
+			Assert.Equal(ShortEnum.EnumMin, output.ShortEnumType);
+			Assert.Equal(UShortEnum.EnumMin, output.UShortEnumType);
+			Assert.Equal(IntEnum.EnumMin, output.IntEnumType);
+			Assert.Equal(UIntEnum.EnumMin, output.UIntEnumType);
+			Assert.Equal(LongEnum.EnumMin, output.LongEnumType);
+			Assert.Equal(ULongEnum.EnumMin, output.ULongEnumType);
 		}
 
 		[Fact]
@@ -620,7 +648,7 @@ namespace RestSharp.Tests
 		[Fact]
 		public void Can_Deserialize_To_Dictionary_String_String()
 		{
-			var doc = CreateJsonStringDictionary();
+            var doc = CreateJsonStringDictionary();
 			var d = new JsonDeserializer();
 			var response = new RestResponse { Content = doc };
 			var bd = d.Deserialize<Dictionary<string,string>>(response);
@@ -663,6 +691,21 @@ namespace RestSharp.Tests
 
 			Assert.Equal(42L, payload.ObjectProperty);
 		}
+
+        [Fact]
+        public void Can_Deserialize_Dictionary_of_Lists()
+        {
+            var doc = File.ReadAllText(Path.Combine("SampleData", "jsondictionary.txt"));
+
+            var json = new JsonDeserializer();
+            json.RootElement = "response";
+
+            var output = json.Deserialize<EmployeeTracker>(new RestResponse { Content = doc });
+
+            Assert.NotEmpty(output.EmployeesMail);
+            Assert.NotEmpty(output.EmployeesTime);
+            Assert.NotEmpty(output.EmployeesPay);
+        }
 
 		private string CreateJsonWithUnderscores()
 		{

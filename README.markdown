@@ -6,7 +6,7 @@
 
 ### Features
 
-* Supports .NET 3.5+, Silverlight 4, Windows Phone 7, Mono, MonoTouch, Mono for Android
+* Supports .NET 3.5+, Silverlight 4, Windows Phone 7, Mono, MonoTouch, Mono for Android, Compact Framework 3.5
 * Easy installation using [NuGet](http://nuget.org/packages/RestSharp) for most .NET flavors
 * Automatic XML and JSON deserialization
 * Supports custom serialization and deserialization via ISerializer and IDeserializer
@@ -45,7 +45,7 @@ var content = response.Content; // raw content as string
 
 // or automatically deserialize result
 // return content type is sniffed but can be explicitly set via RestClient.AddHandler();
-RestResponse<Person> response2 = client.Execute<Person>(request);
+IRestResponse<Person> response2 = client.Execute<Person>(request);
 var name = response2.Data.Name;
 
 // or download and save file to disk

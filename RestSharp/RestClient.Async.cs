@@ -18,7 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-#if NET4 || MONODROID || MONOTOUCH
+#if NET4 || MONODROID || MONOTOUCH || WP8
 using System.Threading.Tasks;
 #endif
 using System.Text;
@@ -37,8 +37,11 @@ namespace RestSharp
 		/// <param name="callback">Callback function to be executed upon completion providing access to the async handle.</param>
 		public virtual RestRequestAsyncHandle ExecuteAsync(IRestRequest request, Action<IRestResponse, RestRequestAsyncHandle> callback)
 		{
-
+#if PocketPC
+                string method = request.Method.ToString();
+#else
 				string method = Enum.GetName(typeof (Method), request.Method);
+#endif
 				switch (request.Method)
 				{
 						case Method.PATCH:
@@ -84,6 +87,7 @@ namespace RestSharp
 
 			Action<HttpResponse> response_cb = r => ProcessResponse(request, r, asyncHandle, callback);
 
+#if !PocketPC
 			if (UseSynchronizationContext && SynchronizationContext.Current != null)
 			{
 				var ctx = SynchronizationContext.Current;
@@ -91,7 +95,7 @@ namespace RestSharp
 
 				response_cb = resp => ctx.Post(s => cb(resp), null);
 			}
-
+#endif
 			asyncHandle.WebRequest = getWebRequest(http, response_cb, httpMethod);
 			return asyncHandle;
 		}
@@ -149,16 +153,11 @@ namespace RestSharp
 
 		private void DeserializeResponse<T>(IRestRequest request, Action<IRestResponse<T>, RestRequestAsyncHandle> callback, IRestResponse response, RestRequestAsyncHandle asyncHandle)
 		{
-			IRestResponse<T> restResponse = response as RestResponse<T>;
-			if (response.ResponseStatus == ResponseStatus.Completed)
-			{
-				restResponse = Deserialize<T>(request, response);
-			}
-
+			IRestResponse<T> restResponse = Deserialize<T>(request, response);
 			callback(restResponse, asyncHandle);
 		}
 
-#if NET4 || MONODROID || MONOTOUCH
+#if NET4 || MONODROID || MONOTOUCH || WP8
 		/// <summary>
 		/// Executes a GET-style request asynchronously, authenticating if needed
 		/// </summary>

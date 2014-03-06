@@ -18,7 +18,7 @@ using System;
 using System.Net;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
-#if NET4 || MONODROID || MONOTOUCH
+#if NET4 || MONODROID || MONOTOUCH || WP8
 using System.Threading;
 using System.Threading.Tasks;
 #endif
@@ -33,7 +33,9 @@ namespace RestSharp
 		/// <summary>
 		/// 
 		/// </summary>
+#if !PocketPC
 		CookieContainer CookieContainer { get; set; }
+#endif
 		/// <summary>
 		/// 
 		/// </summary>
@@ -42,6 +44,10 @@ namespace RestSharp
 		/// 
 		/// </summary>
 		int Timeout { get; set; }
+		/// <summary>
+		/// 
+		/// </summary>
+		int ReadWriteTimeout { get; set; }
 		/// <summary>
 		/// 
 		/// </summary>
@@ -54,6 +60,10 @@ namespace RestSharp
 		/// 
 		/// </summary>
 		string BaseUrl { get; set; }
+		/// <summary>
+		/// 
+		/// </summary>
+		bool PreAuthenticate { get; set; }
 		/// <summary>
 		/// 
 		/// </summary>
@@ -123,7 +133,7 @@ namespace RestSharp
 		IRestResponse<T> ExecuteAsPost<T>(IRestRequest request, string httpMethod) where T : new();
 #endif
 
-#if NET4 || MONODROID || MONOTOUCH
+#if NET4 || MONODROID || MONOTOUCH || WP8
 		/// <summary>
 		/// Executes the request and callback asynchronously, authenticating if needed
 		/// </summary>
