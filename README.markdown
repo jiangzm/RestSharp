@@ -2,7 +2,7 @@
 
 ### [Official Site/Blog][1] - [@RestSharp][2]  
 ### Please use the [Google Group][3] for feature requests and troubleshooting usage.
-### License: Apache License 2.0  
+### License: Apache License 2.0 
 
 ### Features
 
