@@ -1,4 +1,5 @@
 #region License
+
 //   Copyright 2010 John Sheehan
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +13,7 @@
 //   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //   See the License for the specific language governing permissions and
 //   limitations under the License. 
+
 #endregion
 
 using System;
@@ -136,17 +138,9 @@ namespace RestSharp
         /// </summary>
         /// <param name="name">The parameter name to use in the request</param>
         /// <param name="path">Full path to file to upload</param>
+        /// <param name="contentType">The MIME type of the file to upload</param>
         /// <returns>This request</returns>
-        IRestRequest AddFile(string name, string path);
-
-        /// <summary>
-        /// Adds the bytes to the Files collection with the specified file name
-        /// </summary>
-        /// <param name="name">The parameter name to use in the request</param>
-        /// <param name="bytes">The file data</param>
-        /// <param name="fileName">The file name to use for the uploaded file</param>
-        /// <returns>This request</returns>
-        IRestRequest AddFile(string name, byte[] bytes, string fileName);
+        IRestRequest AddFile(string name, string path, string contentType = null);
 
         /// <summary>
         /// Adds the bytes to the Files collection with the specified file name and content type
@@ -156,7 +150,27 @@ namespace RestSharp
         /// <param name="fileName">The file name to use for the uploaded file</param>
         /// <param name="contentType">The MIME type of the file to upload</param>
         /// <returns>This request</returns>
-        IRestRequest AddFile(string name, byte[] bytes, string fileName, string contentType);
+        IRestRequest AddFile(string name, byte[] bytes, string fileName, string contentType = null);
+
+        /// <summary>
+        /// Adds the bytes to the Files collection with the specified file name and content type
+        /// </summary>
+        /// <param name="name">The parameter name to use in the request</param>
+        /// <param name="writer">A function that writes directly to the stream.  Should NOT close the stream.</param>
+        /// <param name="fileName">The file name to use for the uploaded file</param>
+        /// <param name="contentType">The MIME type of the file to upload</param>
+        /// <returns>This request</returns>
+        IRestRequest AddFile(string name, Action<Stream> writer, string fileName, string contentType = null);
+
+        /// <summary>
+        /// Add bytes to the Files collection as if it was a file of specific type
+        /// </summary>
+        /// <param name="name">A form parameter name</param>
+        /// <param name="bytes">The file data</param>
+        /// <param name="filename">The file name to use for the uploaded file</param>
+        /// <param name="contentType">Specific content type. Es: application/x-gzip </param>
+        /// <returns></returns>
+        IRestRequest AddFileBytes(string name, byte[] bytes, string filename, string contentType = "application/x-gzip");
 #endif
 
         /// <summary>
@@ -245,6 +259,21 @@ namespace RestSharp
         /// <param name="type">The type of parameter to add</param>
         /// <returns>This request</returns>
         IRestRequest AddParameter(string name, object value, ParameterType type);
+
+        /// <summary>
+        /// Adds a parameter to the request. There are five types of parameters:
+        /// - GetOrPost: Either a QueryString value or encoded form value based on method
+        /// - HttpHeader: Adds the name/value pair to the HTTP request's Headers collection
+        /// - UrlSegment: Inserted into URL if there is a matching url token e.g. {AccountId}
+        /// - Cookie: Adds the name/value pair to the HTTP request's Cookies collection
+        /// - RequestBody: Used by AddBody() (not recommended to use directly)
+        /// </summary>
+        /// <param name="name">Name of the parameter</param>
+        /// <param name="value">Value of the parameter</param>
+        /// <param name="contentType">Content-Type of the parameter</param>
+        /// <param name="type">The type of parameter to add</param>
+        /// <returns>This request</returns>
+        IRestRequest AddParameter(string name, object value, string contentType, ParameterType type);
 
         /// <summary>
         /// Shortcut to AddParameter(name, value, HttpHeader) overload

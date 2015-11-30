@@ -1,4 +1,5 @@
 ﻿#region License
+
 //   Copyright 2010 John Sheehan
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,29 +13,34 @@
 //   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //   See the License for the specific language governing permissions and
 //   limitations under the License. 
+
 #endregion
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using RestSharp.Extensions;
 
 namespace RestSharp
 {
+
     /// <summary>
     /// Base class for common properties shared by RestResponse and RestResponse[[T]]
     /// </summary>
+    [DebuggerDisplay("{DebuggerDisplay()}")]
     public abstract class RestResponseBase
     {
-        private string _content;
+        private string content;
 
         /// <summary>
         /// Default constructor
         /// </summary>
-        public RestResponseBase()
+        protected RestResponseBase()
         {
-            Headers = new List<Parameter>();
-            Cookies = new List<RestResponseCookie>();
+            this.ResponseStatus = ResponseStatus.None;
+            this.Headers = new List<Parameter>();
+            this.Cookies = new List<RestResponseCookie>();
         }
 
         /// <summary>
@@ -65,16 +71,8 @@ namespace RestSharp
         /// </summary>
         public string Content
         {
-            get
-            {
-                if (_content == null)
-                {
-                    _content = RawBytes.AsString();
-                }
-
-                return _content;
-            }
-            set { _content = value; }
+            get { return this.content ?? (this.content = this.RawBytes.AsString()); }
+            set { this.content = value; }
         }
 
         /// <summary>
@@ -112,17 +110,11 @@ namespace RestSharp
         /// </summary>
         public IList<Parameter> Headers { get; protected internal set; }
 
-        private ResponseStatus _responseStatus = ResponseStatus.None;
-
         /// <summary>
         /// Status of the request. Will return Error for transport errors.
         /// HTTP errors will still return ResponseStatus.Completed, check StatusCode instead
         /// </summary>
-        public ResponseStatus ResponseStatus
-        {
-            get { return _responseStatus; }
-            set { _responseStatus = value; }
-        }
+        public ResponseStatus ResponseStatus { get; set; }
 
         /// <summary>
         /// Transport or other non-HTTP error generated while attempting request
@@ -133,12 +125,24 @@ namespace RestSharp
         /// The exception thrown during the request, if any
         /// </summary>
         public Exception ErrorException { get; set; }
+
+
+        /// <summary>
+        /// Assists with debugging responses by displaying in the debugger output
+        /// </summary>
+        /// <returns></returns>
+        protected string DebuggerDisplay()
+        {
+            return string.Format("StatusCode: {0}, Content-Type: {1}, Content-Length: {2})",
+                this.StatusCode, this.ContentType, this.ContentLength);
+        }
     }
 
     /// <summary>
     /// Container for data sent back from API including deserialized data
     /// </summary>
     /// <typeparam name="T">Type of data to deserialize to</typeparam>
+    [DebuggerDisplay("{DebuggerDisplay()}")]
     public class RestResponse<T> : RestResponseBase, IRestResponse<T>
     {
         /// <summary>
@@ -149,27 +153,28 @@ namespace RestSharp
         public static explicit operator RestResponse<T>(RestResponse response)
         {
             return new RestResponse<T>
-            {
-                ContentEncoding = response.ContentEncoding,
-                ContentLength = response.ContentLength,
-                ContentType = response.ContentType,
-                Cookies = response.Cookies,
-                ErrorMessage = response.ErrorMessage,
-                ErrorException = response.ErrorException,
-                Headers = response.Headers,
-                RawBytes = response.RawBytes,
-                ResponseStatus = response.ResponseStatus,
-                ResponseUri = response.ResponseUri,
-                Server = response.Server,
-                StatusCode = response.StatusCode,
-                StatusDescription = response.StatusDescription,
-                Request = response.Request
-            };
+                   {
+                       ContentEncoding = response.ContentEncoding,
+                       ContentLength = response.ContentLength,
+                       ContentType = response.ContentType,
+                       Cookies = response.Cookies,
+                       ErrorMessage = response.ErrorMessage,
+                       ErrorException = response.ErrorException,
+                       Headers = response.Headers,
+                       RawBytes = response.RawBytes,
+                       ResponseStatus = response.ResponseStatus,
+                       ResponseUri = response.ResponseUri,
+                       Server = response.Server,
+                       StatusCode = response.StatusCode,
+                       StatusDescription = response.StatusDescription,
+                       Request = response.Request
+                   };
         }
     }
 
     /// <summary>
     /// Container for data sent back from API
     /// </summary>
+    [DebuggerDisplay("{DebuggerDisplay()}")]
     public class RestResponse : RestResponseBase, IRestResponse { }
 }

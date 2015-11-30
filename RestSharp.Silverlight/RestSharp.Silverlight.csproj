@@ -9,8 +9,8 @@
     <ProjectTypeGuids>{A1591282-1198-4647-A2B1-27E5FF5F6F3B};{fae04ec0-301f-11d3-bf4b-00c04f79efbc}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>RestSharp.Silverlight</RootNamespace>
-    <AssemblyName>RestSharp.Silverlight</AssemblyName>
+    <RootNamespace>RestSharp</RootNamespace>
+    <AssemblyName>RestSharp</AssemblyName>
     <TargetFrameworkIdentifier>Silverlight</TargetFrameworkIdentifier>
     <TargetFrameworkVersion>v5.0</TargetFrameworkVersion>
     <SilverlightVersion>$(TargetFrameworkVersion)</SilverlightVersion>
@@ -41,7 +41,7 @@
     <NoConfig>true</NoConfig>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>Bin\Debug\RestSharp.Silverlight.xml</DocumentationFile>
+    <DocumentationFile>Bin\Debug\RestSharp.xml</DocumentationFile>
     <NoWarn>1591,1584,1572,1574,1658</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -53,7 +53,7 @@
     <NoConfig>true</NoConfig>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <DocumentationFile>Bin\Release\RestSharp.Silverlight.xml</DocumentationFile>
+    <DocumentationFile>Bin\Release\RestSharp.xml</DocumentationFile>
     <NoWarn>1591,1573,1658,1584,1574,1572</NoWarn>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
@@ -76,6 +76,9 @@
     </Compile>
     <Compile Include="..\RestSharp\Authenticators\IAuthenticator.cs">
       <Link>Authenticators\IAuthenticator.cs</Link>
+    </Compile>
+    <Compile Include="..\RestSharp\Authenticators\JwtAuthenticator.cs">
+      <Link>Authenticators\JwtAuthenticator.cs</Link>
     </Compile>
     <Compile Include="..\RestSharp\Authenticators\NtlmAuthenticator.cs">
       <Link>Authenticators\NtlmAuthenticator.cs</Link>
@@ -169,6 +172,9 @@
     </Compile>
     <Compile Include="..\RestSharp\Extensions\ResponseExtensions.cs">
       <Link>Extensions\ResponseExtensions.cs</Link>
+    </Compile>
+    <Compile Include="..\RestSharp\Extensions\ResponseStatusExtensions.cs">
+      <Link>Extensions\ResponseStatusExtensions.cs</Link>
     </Compile>
     <Compile Include="..\RestSharp\Extensions\StringExtensions.cs">
       <Link>Extensions\StringExtensions.cs</Link>

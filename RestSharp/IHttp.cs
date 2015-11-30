@@ -1,4 +1,5 @@
 ﻿#region License
+
 //   Copyright 2010 John Sheehan
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,13 +13,19 @@
 //   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //   See the License for the specific language governing permissions and
 //   limitations under the License. 
+
 #endregion
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text;
+
+#if FRAMEWORK
+using System.Net.Cache;
 using System.Security.Cryptography.X509Certificates;
+#endif
 
 namespace RestSharp
 {
@@ -26,9 +33,7 @@ namespace RestSharp
     {
         Action<Stream> ResponseWriter { get; set; }
 
-#if !PocketPC
         CookieContainer CookieContainer { get; set; }
-#endif
 
         ICredentials Credentials { get; set; }
 
@@ -53,9 +58,9 @@ namespace RestSharp
         int? MaxRedirects { get; set; }
 #endif
 
-#if !PocketPC
         bool UseDefaultCredentials { get; set; }
-#endif
+
+        Encoding Encoding { get; set; }
 
         IList<HttpHeader> Headers { get; }
 
@@ -70,6 +75,10 @@ namespace RestSharp
         string RequestContentType { get; set; }
 
         bool PreAuthenticate { get; set; }
+
+#if FRAMEWORK
+        RequestCachePolicy CachePolicy { get; set; }
+#endif
 
         /// <summary>
         /// An alternative to RequestBody, for when the caller already has the byte array.
@@ -98,7 +107,7 @@ namespace RestSharp
 
         HttpWebRequest AsGetAsync(Action<HttpResponse> action, string httpMethod);
 
-#if FRAMEWORK || PocketPC
+#if FRAMEWORK
         HttpResponse Delete();
 
         HttpResponse Get();

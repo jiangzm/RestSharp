@@ -1,4 +1,5 @@
 ﻿#region License
+
 //   Copyright 2010 John Sheehan
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +13,7 @@
 //   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //   See the License for the specific language governing permissions and
 //   limitations under the License. 
+
 #endregion
 
 using System;
@@ -19,12 +21,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using RestSharp.Extensions;
 
 #if WINDOWS_PHONE
 using RestSharp.Compression.ZLib;
+#endif
+
+#if FRAMEWORK
+using System.Net.Cache;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.RegularExpressions;
 #endif
 
 namespace RestSharp
@@ -34,8 +41,7 @@ namespace RestSharp
     /// </summary>
     public partial class Http : IHttp, IHttpFactory
     {
-        private const string _lineBreak = "\r\n";
-        private static readonly Encoding _defaultEncoding = Encoding.UTF8;
+        private const string LINE_BREAK = "\r\n";
 
         ///<summary>
         /// Creates an IHttp
@@ -51,7 +57,7 @@ namespace RestSharp
         /// </summary>
         protected bool HasParameters
         {
-            get { return Parameters.Any(); }
+            get { return this.Parameters.Any(); }
         }
 
         /// <summary>
@@ -59,7 +65,7 @@ namespace RestSharp
         /// </summary>
         protected bool HasCookies
         {
-            get { return Cookies.Any(); }
+            get { return this.Cookies.Any(); }
         }
 
         /// <summary>
@@ -67,7 +73,7 @@ namespace RestSharp
         /// </summary>
         protected bool HasBody
         {
-            get { return RequestBodyBytes != null || !string.IsNullOrEmpty(RequestBody); }
+            get { return this.RequestBodyBytes != null || !string.IsNullOrEmpty(this.RequestBody); }
         }
 
         /// <summary>
@@ -75,7 +81,7 @@ namespace RestSharp
         /// </summary>
         protected bool HasFiles
         {
-            get { return Files.Any(); }
+            get { return this.Files.Any(); }
         }
 
         /// <summary>
@@ -103,12 +109,10 @@ namespace RestSharp
         /// </summary>
         public ICredentials Credentials { get; set; }
 
-#if !PocketPC
         /// <summary>
         /// The System.Net.CookieContainer to be used for the request
         /// </summary>
         public CookieContainer CookieContainer { get; set; }
-#endif
 
         /// <summary>
         /// The method to use to write the response instead of reading into RawBytes
@@ -132,22 +136,26 @@ namespace RestSharp
         /// X509CertificateCollection to be sent with request
         /// </summary>
         public X509CertificateCollection ClientCertificates { get; set; }
-#endif
 
-#if FRAMEWORK || PocketPC
         /// <summary>
         /// Maximum number of automatic redirects to follow if FollowRedirects is true
         /// </summary>
         public int? MaxRedirects { get; set; }
 #endif
 
-#if !PocketPC
         /// <summary>
         /// Determine whether or not the "default credentials" (e.g. the user account under which the current process is running)
         /// will be sent along to the server.
         /// </summary>
         public bool UseDefaultCredentials { get; set; }
-#endif
+
+        private Encoding encoding = Encoding.UTF8;
+
+        public Encoding Encoding
+        {
+            get { return this.encoding; }
+            set { this.encoding = value; }
+        }
 
         /// <summary>
         /// HTTP headers to be sent with request
@@ -189,11 +197,16 @@ namespace RestSharp
         /// </summary>
         public bool PreAuthenticate { get; set; }
 
-#if FRAMEWORK || PocketPC
+#if FRAMEWORK
         /// <summary>
         /// Proxy info to be sent with request
         /// </summary>
         public IWebProxy Proxy { get; set; }
+
+        /// <summary>
+        /// Caching policy for requests created with this wrapper.
+        /// </summary>
+        public RequestCachePolicy CachePolicy { get; set; }
 #endif
 
         /// <summary>
@@ -201,85 +214,88 @@ namespace RestSharp
         /// </summary>
         public Http()
         {
-            Headers = new List<HttpHeader>();
-            Files = new List<HttpFile>();
-            Parameters = new List<HttpParameter>();
-            Cookies = new List<HttpCookie>();
+            this.Headers = new List<HttpHeader>();
+            this.Files = new List<HttpFile>();
+            this.Parameters = new List<HttpParameter>();
+            this.Cookies = new List<HttpCookie>();
+            this.restrictedHeaderActions = new Dictionary<string, Action<HttpWebRequest, string>>(
+                StringComparer.OrdinalIgnoreCase);
 
-            _restrictedHeaderActions = new Dictionary<string, Action<HttpWebRequest, string>>(StringComparer.OrdinalIgnoreCase);
-
-            AddSharedHeaderActions();
-            AddSyncHeaderActions();
+            this.AddSharedHeaderActions();
+            this.AddSyncHeaderActions();
         }
 
         partial void AddSyncHeaderActions();
 
+#if SILVERLIGHT || WINDOWS_PHONE
         partial void AddAsyncHeaderActions();
+#endif
 
         private void AddSharedHeaderActions()
         {
-            _restrictedHeaderActions.Add("Accept", (r, v) => r.Accept = v);
-            _restrictedHeaderActions.Add("Content-Type", (r, v) => r.ContentType = v);
+            this.restrictedHeaderActions.Add("Accept", (r, v) => r.Accept = v);
+            this.restrictedHeaderActions.Add("Content-Type", (r, v) => r.ContentType = v);
 #if NET4
-            _restrictedHeaderActions.Add("Date", (r, v) =>
-                {
-                    DateTime parsed;
+            restrictedHeaderActions.Add("Date", (r, v) =>
+                                                {
+                                                    DateTime parsed;
 
-                    if (DateTime.TryParse(v, out parsed))
-                    {
-                        r.Date = parsed;
-                    }
-                });
+                                                    if (DateTime.TryParse(v, out parsed))
+                                                    {
+                                                        r.Date = parsed;
+                                                    }
+                                                });
 
-            _restrictedHeaderActions.Add("Host", (r, v) => r.Host = v);
+            restrictedHeaderActions.Add("Host", (r, v) => r.Host = v);
 #else
-            _restrictedHeaderActions.Add("Date", (r, v) => { /* Set by system */ });
-            _restrictedHeaderActions.Add("Host", (r, v) => { /* Set by system */ });
+            this.restrictedHeaderActions.Add("Date", (r, v) => { /* Set by system */ });
+            this.restrictedHeaderActions.Add("Host", (r, v) => { /* Set by system */ });
 #endif
 
 #if FRAMEWORK
-            _restrictedHeaderActions.Add("Range", (r, v) => { AddRange(r, v); });
+            this.restrictedHeaderActions.Add("Range", AddRange);
 #endif
         }
 
-        private const string FormBoundary = "-----------------------------28947758029299";
+        private const string FORM_BOUNDARY = "-----------------------------28947758029299";
 
         private static string GetMultipartFormContentType()
         {
-            return string.Format("multipart/form-data; boundary={0}", FormBoundary);
+            return string.Format("multipart/form-data; boundary={0}", FORM_BOUNDARY);
         }
 
         private static string GetMultipartFileHeader(HttpFile file)
         {
-            return string.Format("--{0}{4}Content-Disposition: form-data; name=\"{1}\"; filename=\"{2}\"{4}Content-Type: {3}{4}{4}",
-                FormBoundary, file.Name, file.FileName, file.ContentType ?? "application/octet-stream", _lineBreak);
+            return string.Format(
+                "--{0}{4}Content-Disposition: form-data; name=\"{1}\"; filename=\"{2}\"{4}Content-Type: {3}{4}{4}",
+                FORM_BOUNDARY, file.Name, file.FileName, file.ContentType ?? "application/octet-stream", LINE_BREAK);
         }
 
         private string GetMultipartFormData(HttpParameter param)
         {
-            string format = param.Name == RequestContentType
-                ? "--{0}{3}Content-Type: {1}{3}Content-Disposition: form-data; name=\"{1}\"{3}{3}{2}{3}"
+            string format = param.Name == this.RequestContentType
+                ? "--{0}{3}Content-Type: {4}{3}Content-Disposition: form-data; name=\"{1}\"{3}{3}{2}{3}"
                 : "--{0}{3}Content-Disposition: form-data; name=\"{1}\"{3}{3}{2}{3}";
 
-            return string.Format(format, FormBoundary, param.Name, param.Value, _lineBreak);
+            return string.Format(format, FORM_BOUNDARY, param.Name, param.Value, LINE_BREAK, param.ContentType);
         }
 
         private static string GetMultipartFooter()
         {
-            return string.Format("--{0}--{1}", FormBoundary, _lineBreak);
+            return string.Format("--{0}--{1}", FORM_BOUNDARY, LINE_BREAK);
         }
 
-        private readonly IDictionary<string, Action<HttpWebRequest, string>> _restrictedHeaderActions;
+        private readonly IDictionary<string, Action<HttpWebRequest, string>> restrictedHeaderActions;
 
         // handle restricted headers the .NET way - thanks @dimebrain!
         // http://msdn.microsoft.com/en-us/library/system.net.httpwebrequest.headers.aspx
         private void AppendHeaders(HttpWebRequest webRequest)
         {
-            foreach (var header in Headers)
+            foreach (HttpHeader header in this.Headers)
             {
-                if (_restrictedHeaderActions.ContainsKey(header.Name))
+                if (this.restrictedHeaderActions.ContainsKey(header.Name))
                 {
-                    _restrictedHeaderActions[header.Name].Invoke(webRequest, header.Value);
+                    this.restrictedHeaderActions[header.Name].Invoke(webRequest, header.Value);
                 }
                 else
                 {
@@ -294,44 +310,42 @@ namespace RestSharp
 
         private void AppendCookies(HttpWebRequest webRequest)
         {
-#if !PocketPC
             webRequest.CookieContainer = this.CookieContainer ?? new CookieContainer();
-#endif
-            foreach (var httpCookie in Cookies)
+
+            foreach (HttpCookie httpCookie in this.Cookies)
             {
-#if !PocketPC
 #if FRAMEWORK
-                var cookie = new Cookie
-                {
-                    Name = httpCookie.Name,
-                    Value = httpCookie.Value,
-                    Domain = webRequest.RequestUri.Host
-                };
+                Cookie cookie = new Cookie
+                                {
+                                    Name = httpCookie.Name,
+                                    Value = httpCookie.Value,
+                                    Domain = webRequest.RequestUri.Host
+                                };
 
                 webRequest.CookieContainer.Add(cookie);
 #else
-                var cookie = new Cookie
-                {
-                    Name = httpCookie.Name,
-                    Value = httpCookie.Value
-                };
-
-                var uri = webRequest.RequestUri;
+                Cookie cookie = new Cookie
+                             {
+                                 Name = httpCookie.Name,
+                                 Value = httpCookie.Value
+                             };
+                Uri uri = webRequest.RequestUri;
 
                 webRequest.CookieContainer.Add(new Uri(string.Format("{0}://{1}", uri.Scheme, uri.Host)), cookie);
-#endif
 #endif
             }
         }
 
         private string EncodeParameters()
         {
-            var querystring = new StringBuilder();
+            StringBuilder querystring = new StringBuilder();
 
-            foreach (var p in Parameters)
+            foreach (HttpParameter p in this.Parameters)
             {
                 if (querystring.Length > 1)
+                {
                     querystring.Append("&");
+                }
 
                 querystring.AppendFormat("{0}={1}", p.Name.UrlEncode(), p.Value.UrlEncode());
             }
@@ -341,45 +355,46 @@ namespace RestSharp
 
         private void PreparePostBody(HttpWebRequest webRequest)
         {
-            if (HasFiles || AlwaysMultipartFormData)
+            if (this.HasFiles || this.AlwaysMultipartFormData)
             {
                 webRequest.ContentType = GetMultipartFormContentType();
             }
-            else if (HasParameters)
+            else if (this.HasParameters)
             {
                 webRequest.ContentType = "application/x-www-form-urlencoded";
-                RequestBody = EncodeParameters();
+                this.RequestBody = this.EncodeParameters();
             }
-            else if (HasBody)
+            else if (this.HasBody)
             {
-                webRequest.ContentType = RequestContentType;
+                webRequest.ContentType = this.RequestContentType;
             }
         }
 
-        private static void WriteStringTo(Stream stream, string toWrite)
+        private void WriteStringTo(Stream stream, string toWrite)
         {
-            var bytes = _defaultEncoding.GetBytes(toWrite);
+            byte[] bytes = this.Encoding.GetBytes(toWrite);
+
             stream.Write(bytes, 0, bytes.Length);
         }
 
         private void WriteMultipartFormData(Stream requestStream)
         {
-            foreach (var param in Parameters)
+            foreach (HttpParameter param in this.Parameters)
             {
-                WriteStringTo(requestStream, GetMultipartFormData(param));
+                this.WriteStringTo(requestStream, this.GetMultipartFormData(param));
             }
 
-            foreach (var file in Files)
+            foreach (HttpFile file in this.Files)
             {
                 // Add just the first part of this param, since we will write the file data directly to the Stream
-                WriteStringTo(requestStream, GetMultipartFileHeader(file));
+                this.WriteStringTo(requestStream, GetMultipartFileHeader(file));
 
                 // Write the file data directly to the Stream, rather than serializing it to a string.
                 file.Writer(requestStream);
-                WriteStringTo(requestStream, _lineBreak);
+                this.WriteStringTo(requestStream, LINE_BREAK);
             }
 
-            WriteStringTo(requestStream, GetMultipartFooter());
+            this.WriteStringTo(requestStream, GetMultipartFooter());
         }
 
         private void ExtractResponseData(HttpResponse response, HttpWebResponse webResponse)
@@ -392,12 +407,14 @@ namespace RestSharp
 #endif
                 response.ContentType = webResponse.ContentType;
                 response.ContentLength = webResponse.ContentLength;
+
                 Stream webResponseStream = webResponse.GetResponseStream();
 
 #if WINDOWS_PHONE
-                if (String.Equals(webResponse.Headers[HttpRequestHeader.ContentEncoding], "gzip", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(webResponse.Headers[HttpRequestHeader.ContentEncoding], "gzip", StringComparison.OrdinalIgnoreCase))
                 {
-                    var gzStream = new GZipStream(webResponseStream);
+                    GZipStream gzStream = new GZipStream(webResponseStream);
+
                     ProcessResponseStream(gzStream, response);
                 }
                 else
@@ -405,42 +422,47 @@ namespace RestSharp
                     ProcessResponseStream(webResponseStream, response);
                 }
 #else
-                ProcessResponseStream(webResponseStream, response);
+                this.ProcessResponseStream(webResponseStream, response);
 #endif
+
                 response.StatusCode = webResponse.StatusCode;
                 response.StatusDescription = webResponse.StatusDescription;
                 response.ResponseUri = webResponse.ResponseUri;
                 response.ResponseStatus = ResponseStatus.Completed;
 
-#if !PocketPC
                 if (webResponse.Cookies != null)
                 {
                     foreach (Cookie cookie in webResponse.Cookies)
                     {
                         response.Cookies.Add(new HttpCookie
-                        {
-                            Comment = cookie.Comment,
-                            CommentUri = cookie.CommentUri,
-                            Discard = cookie.Discard,
-                            Domain = cookie.Domain,
-                            Expired = cookie.Expired,
-                            Expires = cookie.Expires,
-                            HttpOnly = cookie.HttpOnly,
-                            Name = cookie.Name,
-                            Path = cookie.Path,
-                            Port = cookie.Port,
-                            Secure = cookie.Secure,
-                            TimeStamp = cookie.TimeStamp,
-                            Value = cookie.Value,
-                            Version = cookie.Version
-                        });
+                                             {
+                                                 Comment = cookie.Comment,
+                                                 CommentUri = cookie.CommentUri,
+                                                 Discard = cookie.Discard,
+                                                 Domain = cookie.Domain,
+                                                 Expired = cookie.Expired,
+                                                 Expires = cookie.Expires,
+                                                 HttpOnly = cookie.HttpOnly,
+                                                 Name = cookie.Name,
+                                                 Path = cookie.Path,
+                                                 Port = cookie.Port,
+                                                 Secure = cookie.Secure,
+                                                 TimeStamp = cookie.TimeStamp,
+                                                 Value = cookie.Value,
+                                                 Version = cookie.Version
+                                             });
                     }
                 }
-#endif
-                foreach (var headerName in webResponse.Headers.AllKeys)
+
+                foreach (string headerName in webResponse.Headers.AllKeys)
                 {
-                    var headerValue = webResponse.Headers[headerName];
-                    response.Headers.Add(new HttpHeader { Name = headerName, Value = headerValue });
+                    string headerValue = webResponse.Headers[headerName];
+
+                    response.Headers.Add(new HttpHeader
+                                         {
+                                             Name = headerName,
+                                             Value = headerValue
+                                         });
                 }
 
                 webResponse.Close();
@@ -449,30 +471,31 @@ namespace RestSharp
 
         private void ProcessResponseStream(Stream webResponseStream, HttpResponse response)
         {
-            if (ResponseWriter == null)
+            if (this.ResponseWriter == null)
             {
                 response.RawBytes = webResponseStream.ReadAsBytes();
             }
             else
             {
-                ResponseWriter(webResponseStream);
+                this.ResponseWriter(webResponseStream);
             }
         }
 
 #if FRAMEWORK
-        private void AddRange(HttpWebRequest r, string range)
+        private static void AddRange(HttpWebRequest r, string range)
         {
-            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(range, "=(\\d+)-(\\d+)$");
+            Match m = Regex.Match(range, "(\\w+)=(\\d+)-(\\d+)$");
 
             if (!m.Success)
             {
                 return;
             }
 
-            int from = Convert.ToInt32(m.Groups[1].Value);
-            int to = Convert.ToInt32(m.Groups[2].Value);
+            string rangeSpecifier = m.Groups[1].Value;
+            int from = Convert.ToInt32(m.Groups[2].Value);
+            int to = Convert.ToInt32(m.Groups[3].Value);
 
-            r.AddRange(from, to);
+            r.AddRange(rangeSpecifier, from, to);
         }
 #endif
     }
